@@ -12,6 +12,8 @@ pageextension 50100 CustomerHelloWorld extends "Customer Card"
                 ToolTip = 'A friendly greeting.';
             }
         }
+
+        movefirst(factboxes; Control1905767507)
     }
 
     var
