@@ -1,0 +1,33 @@
+{
+  "id": "3259246b-208f-48c6-a6d6-7c2f1ab2137f",
+  "name": "Customer Hello World",
+  "publisher": "BC Experiments",
+  "version": "1.0.0.0",
+  "brief": "",
+  "description": "Shows a Hello World message on the Customer Card page.",
+  "privacyStatement": "",
+  "EULA": "",
+  "help": "",
+  "url": "",
+  "logo": "",
+  "dependencies": [],
+  "screenshots": [],
+  "platform": "",
+  "application": "",
+  "idRanges": [
+    {
+      "from": 50100,
+      "to": 50149
+    }
+  ],
+  "resourceExposurePolicy": {
+    "allowDebugging": true,
+    "allowDownloadingSource": true,
+    "includeSourceInSymbolFile": true
+  },
+  "runtime": "13.0",
+  "features": [
+    "NoImplicitWith",
+    "TranslationFile"
+  ]
+}
