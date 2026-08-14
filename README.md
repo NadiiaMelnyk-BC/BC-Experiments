@@ -1,7 +1,15 @@
 # BC-Experiments
 
-A single repository for Business Central (AL) development. Each feature lives in
-its own top-level folder using the convention:
+## What this is
+
+A single repository for Business Central (AL) development. It's used to try
+out and build individual BC customizations ("features") without spinning up
+a separate repo for each one — everything lives here, isolated by folder,
+sharing one build/deploy pipeline.
+
+## Structure
+
+Each feature lives in its own top-level folder using the convention:
 
 ```
 feature1-src/
@@ -9,14 +17,15 @@ feature2-src/
 feature3-src/
 ```
 
-Every folder is an independent AL app (its own `app.json`, own object ID range,
-own `.vscode/launch.json`), but they all share one CI/CD pipeline via
+Every folder is an independent AL app (its own `app.json`, own object ID
+range, own `.vscode/launch.json`), but they all share one CI/CD pipeline via
 [AL-Go for GitHub](https://aka.ms/AL-Go) — Microsoft's official build/deploy
 framework for AL projects. AL-Go was vendored into this repo from the
 [AL-Go-PTE](https://github.com/microsoft/AL-Go-PTE) template (v9.1) and lives
 mostly under `.github/workflows/` and `.AL-Go/`.
 
-There is no example feature yet — this commit only sets up the tooling.
+There is no example feature yet — see [Features](#features) below, which is
+currently empty.
 
 ## Adding a new feature
 
@@ -32,10 +41,18 @@ There is no example feature yet — this commit only sets up the tooling.
    so the AL Language extension picks it up when you open the workspace file
    in VS Code.
 5. Open the workspace, run **AL: Download Symbols**, and start developing.
+6. Add a row for it in the [Features](#features) table below.
 
 (You can also create a folder by hand — copy the shape of an existing
 `featureN-src` app once one exists — but the workflow guarantees a valid
 `app.json`/ID range and is the recommended path.)
+
+## Removing a feature
+
+1. Delete the `featureN-src` folder.
+2. Remove it from `appFolders` in `.AL-Go/settings.json`.
+3. Remove it from the `folders` list in `al.code-workspace`.
+4. Delete its row from the [Features](#features) table below.
 
 ## CI — every push and PR
 
@@ -45,45 +62,34 @@ resolves "latest" automatically, so there's no BC version to hand-pin in this
 repo. It runs on push to `main`/`release/*`/`feature/*` and on PRs, and
 uploads compiled `.app` files as build artifacts.
 
-## CD — auto-deploy on push, or on demand
+## CD — deployed on request, to `SandboxAT`
 
-This is the "implement it, then deploy it" loop:
+Deployment is **on-request**, not automatic on every commit: when you ask for
+a feature to be implemented and deployed, the change gets built and then
+pushed to the `SandboxAT` Business Central environment via **Actions →
+"Publish To Environment"** (`PublishToEnvironment.yaml`). AL-Go's `CICD.yaml`
+would also auto-deploy on push to `main` since `SandboxAT` is a registered
+target, but the intended workflow here is deploy-when-asked, not
+deploy-on-every-merge.
 
-- **Automatic:** once a target environment is registered (see below), every
-  push to `main` deploys the newly built apps to it via the `Deploy` job in
-  `CICD.yaml`.
-- **On demand:** run **Actions → "Publish To Environment"**
-  (`PublishToEnvironment.yaml`) any time to push the latest build to a
-  specific environment without waiting for a push to `main`.
+### Auth setup (done)
 
-When you ask for a feature to be implemented **and deployed**, the flow is:
-commit the AL changes to a branch → push → merge to `main` (or trigger
-`PublishToEnvironment` directly) → AL-Go builds and deploys automatically.
+AL-Go authenticates to the tenant via a Microsoft Entra app registration
+using the client-credentials (S2S) flow:
 
-### One-time setup required (tenant admin action — cannot be done from this repo)
+- A GitHub **Environment** named `SandboxAT` (Settings → Environments) holds
+  the secret `AUTHCONTEXT` — compact JSON of
+  `{"TenantID":...,"ClientID":...,"ClientSecret":...}` for the app.
+- That app is registered inside the Business Central Admin Center under
+  Microsoft Entra applications, currently assigned the `SUPER` permission
+  set. (Broader than strictly necessary for just publishing extensions —
+  worth narrowing to something like `D365 AUTOMATION` later, but functional
+  as-is.)
 
-AL-Go needs credentials to talk to your Business Central tenant. This has to
-be done once, by whoever administers the BC tenant/Entra ID:
-
-1. Register a Microsoft Entra ID app with Business Central Administration API
-   permissions (client credentials / S2S flow).
-2. Add a GitHub **Environment** (Settings → Environments) named after your BC
-   environment (e.g. `Sandbox`), with a secret called `AUTHCONTEXT`:
-   ```json
-   {"TenantID":"<tenant-id>","ClientID":"<client-id>","ClientSecret":"<client-secret>"}
-   ```
-   (must be compact JSON, no trailing newline).
-3. Confirm the environment shows up as a deploy target the next time
-   `CICD.yaml` or `PublishToEnvironment.yaml` runs.
-
-Full walkthrough:
-[Register a sandbox environment for Continuous Deployment](https://github.com/microsoft/AL-Go/blob/main/Scenarios/RegisterSandboxEnvironment.md).
-For a production environment (manual approval instead of auto-deploy on
-every push), see
+Reference docs if this ever needs to be redone or extended to a production
+environment:
+[Register a sandbox environment for Continuous Deployment](https://github.com/microsoft/AL-Go/blob/main/Scenarios/RegisterSandboxEnvironment.md),
 [Register a production environment](https://github.com/microsoft/AL-Go/blob/main/Scenarios/RegisterProductionEnvironment.md).
-
-Until step 2 is done, CI (build/compile) still works — only the deploy step
-is blocked.
 
 ## Repo layout
 
@@ -98,13 +104,21 @@ featureN-src/               One AL app per feature (created via the workflow abo
 To pull in AL-Go framework updates later, run **Actions → "Update AL-Go
 System Files"**.
 
+## Features
+
+This table is the source of truth for what exists in the repo. **Every time
+a feature folder is added, add a row here. Every time a feature folder is
+removed, delete its row.** Keep it in sync with `appFolders` in
+`.AL-Go/settings.json` — same folders, same order is not required, but
+nothing should be listed in one place and not the other.
+
+| Folder | Description | ID range | Status |
+|---|---|---|---|
+| _(none yet)_ | | | |
+
 ## Notes
 
 - `.AL-Go/settings.json` defaults `country` to `us`. Change it if your BC
   tenant's localization differs.
-- Each feature needs its own AL object ID range (no overlaps) — track ranges
-  in this table as you add features:
-
-  | Folder | ID range |
-  |---|---|
-  | _(none yet)_ | |
+- Each feature needs its own AL object ID range (no overlaps) — tracked in
+  the table above.
