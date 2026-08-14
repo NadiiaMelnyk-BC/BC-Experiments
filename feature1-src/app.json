@@ -12,6 +12,7 @@
   "logo": "",
   "dependencies": [],
   "screenshots": [],
+  "application": "18.0.0.0",
   "idRanges": [
     {
       "from": 50100,
