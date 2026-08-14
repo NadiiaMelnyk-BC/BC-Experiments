@@ -114,7 +114,7 @@ nothing should be listed in one place and not the other.
 
 | Folder | Description | ID range | Status |
 |---|---|---|---|
-| _(none yet)_ | | | |
+| `feature1-src` | Customer Card shows a "Hello World" greeting | 50100..50149 | Deployed to SandboxAT |
 
 ## Notes
 
