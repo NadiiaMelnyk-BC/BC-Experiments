@@ -1,3 +1,7 @@
+html, body {
+    background: transparent;
+}
+
 .pdfv2-container {
     max-width: 100%;
     max-height: 100%;
@@ -19,13 +23,10 @@
     height: 100%;
 }
 
-/* One panel per attachment, stacked in a single scrolling column. Panels are
-   a fixed height so the gallery's scroll length is known before any content
-   has loaded, which is what lets the observer decide what to fetch. */
 .pdfv2-gallery {
     height: 100%;
     overflow-y: auto;
-    background: #e6e6e6;
+    background: transparent;
 }
 
 .pdfv2-panel {
@@ -55,8 +56,6 @@
     height: 380px;
 }
 
-/* Nothing to render, so the body shrinks to its message instead of holding a
-   preview's worth of empty space. */
 .pdfv2-panel-collapsed .pdfv2-panel-body {
     height: auto;
 }
@@ -69,8 +68,6 @@
     font-size: 13px;
 }
 
-/* Colours and metrics below are sampled from the browser's own PDF toolbar so
-   that a picture and a PDF present the same chrome. */
 .pdfv2-toolbar {
     flex: 0 0 auto;
     display: flex;
@@ -144,12 +141,7 @@
 }
 
 .pdfv2-image {
-    /* Never let the flex layout shrink the image back to the width of the
-       stage: past 100% its own width is the whole point, and the stage
-       scrolls instead. */
     flex: 0 0 auto;
-    /* Auto margins centre the image while there is room to spare, without
-       clipping it once it is zoomed past the edges of the stage. */
     margin: auto;
     height: auto;
     box-shadow: 0 0 3px rgba(0,0,0,.08);

@@ -13,25 +13,6 @@ page 50100 "PDFV2 PDF Attachments"
     {
         area(content)
         {
-            repeater(Attachments)
-            {
-                field(Name; Rec."File Name")
-                {
-                    ApplicationArea = All;
-                    Caption = 'Name';
-                    ToolTip = 'Specifies the name of the attached file. Select a row to preview PDF and image files below.';
-                }
-                field("File Extension"; Rec."File Extension")
-                {
-                    ApplicationArea = All;
-                    ToolTip = 'Specifies the extension of the attached file.';
-                }
-                field("Attached Date"; Rec."Attached Date")
-                {
-                    ApplicationArea = All;
-                    ToolTip = 'Specifies when the file was attached.';
-                }
-            }
             group(Preview)
             {
                 ShowCaption = false;
@@ -44,10 +25,6 @@ page 50100 "PDFV2 PDF Attachments"
                     trigger ControlAddinReady()
                     begin
                         AddInIsReady := true;
-
-                        // The control is created afresh each time the group
-                        // becomes visible, with no panels in it, so the gallery
-                        // is always rebuilt from here.
                         GalleryLoaded := false;
                         ShowGallery();
                     end;
@@ -78,10 +55,6 @@ page 50100 "PDFV2 PDF Attachments"
         ShowGallery();
     end;
 
-    /// <summary>
-    /// Keeps the preview out of the layout entirely when the record has nothing
-    /// attached, rather than leaving an empty viewer sitting under the list.
-    /// </summary>
     local procedure UpdateVisibility()
     var
         Attachment: Record "Document Attachment";
@@ -90,11 +63,6 @@ page 50100 "PDFV2 PDF Attachments"
         HasAttachments := not Attachment.IsEmpty();
     end;
 
-    /// <summary>
-    /// Builds one empty panel per attachment on the source record. Nothing is
-    /// streamed here: the add-in asks for each panel's content as it scrolls
-    /// into view.
-    /// </summary>
     local procedure ShowGallery()
     var
         Attachment: Record "Document Attachment";
@@ -102,18 +70,14 @@ page 50100 "PDFV2 PDF Attachments"
         CurrentFilters: Text;
         ItemsJson: Text;
     begin
-        // OnAfterGetCurrRecord fires before the add-in has loaded its scripts.
         if not AddInIsReady then
             exit;
 
-        // While the group is hidden there is no control to talk to.
         if not HasAttachments then begin
             GalleryLoaded := false;
             exit;
         end;
 
-        // The trigger also fires when the user picks another row, which leaves
-        // the gallery unchanged. Only a different source record rebuilds it.
         CurrentFilters := Rec.GetFilters();
         if GalleryLoaded and (CurrentFilters = GalleryFilters) then
             exit;
@@ -133,10 +97,6 @@ page 50100 "PDFV2 PDF Attachments"
         CurrPage.PDFViewer.LoadGallery(ItemsJson, LoadingTxt, true);
     end;
 
-    /// <summary>
-    /// Built in its own procedure so that every panel gets a fresh object
-    /// rather than repeated additions of one reused variable.
-    /// </summary>
     local procedure AttachmentItem(Attachment: Record "Document Attachment"): JsonObject
     var
         Item: JsonObject;
@@ -148,8 +108,6 @@ page 50100 "PDFV2 PDF Attachments"
         Item.Add('name', AttachmentFileName(Attachment));
         Item.Add('contentType', ContentType);
 
-        // Panels that can never show content carry the reason with them, so the
-        // add-in does not have to word anything itself.
         if ContentType = '' then
             Item.Add('note', NoPreviewNote(Attachment));
 
@@ -170,7 +128,6 @@ page 50100 "PDFV2 PDF Attachments"
         exit(StrSubstNo(NoPreviewForTypeTxt, UpperCase(FileExtension)));
     end;
 
-    /// <summary>Streams a single attachment to the panel that asked for it.</summary>
     local procedure SendAttachment(AttachmentId: Text)
     var
         Attachment: Record "Document Attachment";
@@ -184,7 +141,6 @@ page 50100 "PDFV2 PDF Attachments"
         if not Evaluate(AttachmentSystemId, AttachmentId) then
             exit;
 
-        // The record may have gone since the gallery was built.
         if not Attachment.GetBySystemId(AttachmentSystemId) then begin
             CurrPage.PDFViewer.LoadGalleryNote(AttachmentId, AttachmentGoneTxt);
             exit;
@@ -212,10 +168,6 @@ page 50100 "PDFV2 PDF Attachments"
         exit(Attachment."File Name" + '.' + Attachment."File Extension");
     end;
 
-    /// <summary>
-    /// Returns the MIME type the add-in should render the attachment as, or an
-    /// empty string when the file is not a format the add-in can preview.
-    /// </summary>
     local procedure GetPreviewContentType(Attachment: Record "Document Attachment"): Text
     begin
         if not Attachment."Document Reference ID".HasValue() then
@@ -230,7 +182,6 @@ page 50100 "PDFV2 PDF Attachments"
                 exit('image/png');
         end;
 
-        // Attachments created without an extension still carry a file type.
         if Attachment."File Type" = Attachment."File Type"::PDF then
             exit('application/pdf');
 
