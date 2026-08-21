@@ -11,3 +11,97 @@
     height: 100%;
     overflow: auto;
 }
+
+.pdfv2-image-viewer {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    height: 100%;
+}
+
+/* Colours and metrics below are sampled from the browser's own PDF toolbar so
+   that a picture and a PDF present the same chrome. */
+.pdfv2-toolbar {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    height: 50px;
+    padding: 0 8px;
+    background: #f7f7f7;
+    border-bottom: 1px solid #bebebe;
+    color: #262626;
+    font-family: "Segoe UI", system-ui, sans-serif;
+    font-size: 15px;
+    user-select: none;
+}
+
+.pdfv2-zoom-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 40px;
+    height: 40px;
+    padding: 0 10px;
+    border: none;
+    border-radius: 4px;
+    background: transparent;
+    color: inherit;
+    font-family: inherit;
+    font-size: inherit;
+    cursor: pointer;
+}
+
+.pdfv2-zoom-button:hover {
+    background: rgba(0,0,0,.06);
+}
+
+.pdfv2-zoom-button:active {
+    background: rgba(0,0,0,.12);
+}
+
+.pdfv2-icon {
+    display: block;
+    width: 20px;
+    height: 20px;
+}
+
+.pdfv2-toolbar-divider {
+    flex: 0 0 auto;
+    width: 1px;
+    height: 20px;
+    margin: 0 8px;
+    background: #b6b6b6;
+}
+
+.pdfv2-zoom-label {
+    margin-right: auto;
+    padding-left: 8px;
+    color: inherit;
+}
+
+.pdfv2-stage {
+    flex: 1 1 auto;
+    display: flex;
+    overflow: auto;
+    padding: 12px;
+    background: #e6e6e6;
+    cursor: grab;
+}
+
+.pdfv2-stage.pdfv2-panning {
+    cursor: grabbing;
+}
+
+.pdfv2-image {
+    /* Never let the flex layout shrink the image back to the width of the
+       stage: past 100% its own width is the whole point, and the stage
+       scrolls instead. */
+    flex: 0 0 auto;
+    /* Auto margins centre the image while there is room to spare, without
+       clipping it once it is zoomed past the edges of the stage. */
+    margin: auto;
+    height: auto;
+    box-shadow: 0 0 3px rgba(0,0,0,.08);
+    user-select: none;
+}

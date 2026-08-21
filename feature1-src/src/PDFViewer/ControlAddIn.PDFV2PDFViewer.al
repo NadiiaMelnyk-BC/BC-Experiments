@@ -14,6 +14,6 @@ controladdin "PDFV2 PDF Viewer"
     HorizontalShrink = true;
 
     event ControlAddinReady();
-    procedure LoadPDF(PDFDocument: Text; IsFactbox: Boolean)
+    procedure LoadDocument(Base64Content: Text; ContentType: Text; IsFactbox: Boolean)
     procedure SetVisible(IsVisible: Boolean)
 }

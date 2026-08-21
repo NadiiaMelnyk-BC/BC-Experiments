@@ -19,7 +19,7 @@ page 50100 "PDFV2 PDF Attachments"
                 {
                     ApplicationArea = All;
                     Caption = 'Name';
-                    ToolTip = 'Specifies the name of the attached file. Select a row to preview it below.';
+                    ToolTip = 'Specifies the name of the attached file. Select a row to preview PDF and image files below.';
                 }
                 field("File Extension"; Rec."File Extension")
                 {
@@ -67,12 +67,14 @@ page 50100 "PDFV2 PDF Attachments"
         TempBlob: Codeunit "Temp Blob";
         AttachmentInStream: InStream;
         AttachmentOutStream: OutStream;
+        ContentType: Text;
     begin
         // OnAfterGetCurrRecord fires before the add-in has loaded its scripts.
         if not AddInIsReady then
             exit;
 
-        if not IsPdf() then begin
+        ContentType := GetPreviewContentType();
+        if ContentType = '' then begin
             CurrPage.PDFViewer.SetVisible(false);
             exit;
         end;
@@ -82,15 +84,31 @@ page 50100 "PDFV2 PDF Attachments"
         TempBlob.CreateInStream(AttachmentInStream);
 
         CurrPage.PDFViewer.SetVisible(true);
-        CurrPage.PDFViewer.LoadPDF(Base64Convert.ToBase64(AttachmentInStream), true);
+        CurrPage.PDFViewer.LoadDocument(Base64Convert.ToBase64(AttachmentInStream), ContentType, true);
     end;
 
-    local procedure IsPdf(): Boolean
+    /// <summary>
+    /// Returns the MIME type the add-in should render the attachment as, or an
+    /// empty string when the file is not a format the add-in can preview.
+    /// </summary>
+    local procedure GetPreviewContentType(): Text
     begin
         if not Rec."Document Reference ID".HasValue() then
-            exit(false);
+            exit('');
 
-        exit((Rec."File Type" = Rec."File Type"::PDF) or
-             (LowerCase(DelChr(Rec."File Extension", '<', '.')) = 'pdf'));
+        case LowerCase(DelChr(Rec."File Extension", '<', '.')) of
+            'pdf':
+                exit('application/pdf');
+            'jpg', 'jpeg':
+                exit('image/jpeg');
+            'png':
+                exit('image/png');
+        end;
+
+        // Attachments created without an extension still carry a file type.
+        if Rec."File Type" = Rec."File Type"::PDF then
+            exit('application/pdf');
+
+        exit('');
     end;
 }
