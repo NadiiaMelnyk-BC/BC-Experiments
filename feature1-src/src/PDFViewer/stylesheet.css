@@ -12,11 +12,61 @@
     overflow: auto;
 }
 
-.pdfv2-image-viewer {
+.pdfv2-viewer {
     display: flex;
     flex-direction: column;
     width: 100%;
     height: 100%;
+}
+
+/* One panel per attachment, stacked in a single scrolling column. Panels are
+   a fixed height so the gallery's scroll length is known before any content
+   has loaded, which is what lets the observer decide what to fetch. */
+.pdfv2-gallery {
+    height: 100%;
+    overflow-y: auto;
+    background: #e6e6e6;
+}
+
+.pdfv2-panel {
+    margin: 8px;
+    border: 1px solid #bebebe;
+    border-radius: 4px;
+    background: #ffffff;
+    overflow: hidden;
+}
+
+.pdfv2-panel-header {
+    display: flex;
+    align-items: center;
+    height: 36px;
+    padding: 0 12px;
+    background: #f7f7f7;
+    border-bottom: 1px solid #bebebe;
+    color: #262626;
+    font-family: "Segoe UI", system-ui, sans-serif;
+    font-size: 13px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.pdfv2-panel-body {
+    height: 380px;
+}
+
+/* Nothing to render, so the body shrinks to its message instead of holding a
+   preview's worth of empty space. */
+.pdfv2-panel-collapsed .pdfv2-panel-body {
+    height: auto;
+}
+
+.pdfv2-note {
+    margin: 0;
+    padding: 16px;
+    color: #616161;
+    font-family: "Segoe UI", system-ui, sans-serif;
+    font-size: 13px;
 }
 
 /* Colours and metrics below are sampled from the browser's own PDF toolbar so

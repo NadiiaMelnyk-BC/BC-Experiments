@@ -3,14 +3,17 @@ const MAX_ZOOM = 8;
 const ZOOM_STEP = 1.25;
 const WHEEL_STEP = 1.1;
 
+// How far ahead of the viewport a panel starts loading.
+const PRELOAD_MARGIN = '300px';
+
 // Traced from the browser's own PDF toolbar: a 12x2 bar and a 13x13 cross,
 // both 2px strokes with round caps, on a 20x20 grid.
 const SVG_NS = 'http://www.w3.org/2000/svg';
 const ICON_MINUS = 'M4 10h12';
 const ICON_PLUS = 'M10 3.5v13M3.5 10h13';
 
-var currentBlobUrl = null;
-var imageViewer = null;
+var galleryBlobUrls = {};
+var panelObserver = null;
 
 function InitializeControl(controlId) {
     var controlAddIn = document.getElementById(controlId);
@@ -26,35 +29,161 @@ function SetVisible(IsVisible) {
 
 }
 
-function LoadDocument(Base64Content,ContentType,IsFactbox){
+function LoadGallery(ItemsJson,LoadingText,IsFactbox){
     var iframe = window.frameElement;
     var height = IsFactbox ? 600 : 1100;
 
     requestAnimationFrame(() => {
-        const blob = b64toBlob(Base64Content, ContentType);
-        const blobUrl = URL.createObjectURL(blob);
-
-        // Replace whatever document was shown before. Dropping the old markup
-        // also drops its event listeners, so nothing accumulates as the user
-        // clicks through the attachment list.
         const container = document.querySelector("#my-pdf");
-        imageViewer = null;
+
+        // Rebuilding replaces every panel, so the old ones release their blobs
+        // and the observer stops watching markup that is about to be discarded.
+        releaseAllBlobs();
+        if (panelObserver) {
+            panelObserver.disconnect();
+            panelObserver = null;
+        }
         container.innerHTML = '';
 
-        // Give the container a concrete height so the viewer's height: 100%
+        // Give the container a concrete height so the gallery's height: 100%
         // chain has something to resolve against.
         container.style.height = height + 'px';
-        container.appendChild(createViewer(ContentType, blobUrl));
 
-        // The previous document is detached now, so its blob can be released.
-        if (currentBlobUrl) {
-            URL.revokeObjectURL(currentBlobUrl);
-        }
-        currentBlobUrl = blobUrl;
+        const gallery = document.createElement('div');
+        gallery.className = 'pdfv2-gallery';
+        JSON.parse(ItemsJson).forEach((item) => {
+            gallery.appendChild(createPanel(item, LoadingText));
+        });
+        container.appendChild(gallery);
+
+        observePanels(gallery);
 
         iframe.style.maxHeight = height + 'px';
         iframe.style.height =  height + 'px';
     });
+}
+
+function createPanel(item, loadingText) {
+    const panel = document.createElement('section');
+    panel.className = 'pdfv2-panel';
+    panel.dataset.id = item.id;
+
+    const header = document.createElement('div');
+    header.className = 'pdfv2-panel-header';
+    header.textContent = item.name;
+    header.title = item.name;
+
+    const body = document.createElement('div');
+    body.className = 'pdfv2-panel-body';
+
+    // A panel with nothing to render never asks AL for content, and gives up
+    // the space a preview would have taken.
+    if (item.contentType) {
+        body.appendChild(createNote(loadingText));
+    } else {
+        body.appendChild(createNote(item.note));
+        panel.classList.add('pdfv2-panel-collapsed');
+        panel.dataset.state = 'done';
+    }
+
+    panel.appendChild(header);
+    panel.appendChild(body);
+    return panel;
+}
+
+// Content is fetched per panel as it approaches the viewport, so a record with
+// many attachments does not push every file through the bridge at once.
+function observePanels(gallery) {
+    panelObserver = new IntersectionObserver((entries) => {
+        entries.forEach((entry) => {
+            const panel = entry.target;
+            if (!entry.isIntersecting || panel.dataset.state) {
+                return;
+            }
+
+            panel.dataset.state = 'requested';
+            Microsoft.Dynamics.NAV.InvokeExtensibilityMethod(
+                'DocumentRequested', [panel.dataset.id]);
+        });
+    }, { root: gallery, rootMargin: PRELOAD_MARGIN });
+
+    gallery.querySelectorAll('.pdfv2-panel').forEach((panel) => {
+        panelObserver.observe(panel);
+    });
+}
+
+function LoadGalleryDocument(AttachmentId,Base64Content,ContentType){
+    const body = panelBody(AttachmentId);
+    if (!body) {
+        return;
+    }
+
+    const blob = b64toBlob(Base64Content, ContentType);
+    const blobUrl = URL.createObjectURL(blob);
+    releaseBlob(AttachmentId);
+    galleryBlobUrls[AttachmentId] = blobUrl;
+
+    body.innerHTML = '';
+    body.appendChild(createViewer(ContentType, blobUrl));
+    markDone(AttachmentId);
+}
+
+function LoadGalleryNote(AttachmentId,NoteText){
+    const panel = findPanel(AttachmentId);
+    if (!panel) {
+        return;
+    }
+
+    const body = panel.querySelector('.pdfv2-panel-body');
+    body.innerHTML = '';
+    body.appendChild(createNote(NoteText));
+
+    // Content that never arrived should not keep holding a preview's worth of
+    // space open.
+    panel.classList.add('pdfv2-panel-collapsed');
+    panel.dataset.state = 'done';
+}
+
+// Ids are GUIDs in braces, which would need escaping inside a selector, so the
+// panels are matched by comparing the attribute instead.
+function findPanel(attachmentId) {
+    const panels = document.querySelectorAll('.pdfv2-panel');
+    for (let i = 0; i < panels.length; i++) {
+        if (panels[i].dataset.id === attachmentId) {
+            return panels[i];
+        }
+    }
+    return null;
+}
+
+function panelBody(attachmentId) {
+    const panel = findPanel(attachmentId);
+    return panel ? panel.querySelector('.pdfv2-panel-body') : null;
+}
+
+function markDone(attachmentId) {
+    const panel = findPanel(attachmentId);
+    if (panel) {
+        panel.dataset.state = 'done';
+    }
+}
+
+function createNote(text) {
+    const note = document.createElement('p');
+    note.className = 'pdfv2-note';
+    note.textContent = text;
+    return note;
+}
+
+function releaseBlob(attachmentId) {
+    if (galleryBlobUrls[attachmentId]) {
+        URL.revokeObjectURL(galleryBlobUrls[attachmentId]);
+        delete galleryBlobUrls[attachmentId];
+    }
+}
+
+function releaseAllBlobs() {
+    Object.keys(galleryBlobUrls).forEach(releaseBlob);
 }
 
 // Images get our own zoom/pan viewer. Everything else goes to the browser's
@@ -72,9 +201,10 @@ function createViewer(ContentType, blobUrl) {
     return viewer;
 }
 
+// Each panel owns its zoom state, so several images can be open at once.
 function createImageViewer(blobUrl) {
     const root = document.createElement('div');
-    root.className = 'pdfv2-image-viewer';
+    root.className = 'pdfv2-viewer';
 
     const stage = document.createElement('div');
     stage.className = 'pdfv2-stage';
@@ -86,7 +216,41 @@ function createImageViewer(blobUrl) {
     const label = document.createElement('span');
     label.className = 'pdfv2-zoom-label';
 
-    imageViewer = { image: image, stage: stage, label: label, scale: 1 };
+    let scale = 1;
+
+    // Sizing the image in pixels rather than transforming it keeps the stage's
+    // own scrollbars in sync with the zoom level, which is what makes panning
+    // work.
+    function setZoom(nextScale) {
+        if (!image.naturalWidth) {
+            return;
+        }
+
+        scale = Math.min(Math.max(nextScale, MIN_ZOOM), MAX_ZOOM);
+        image.style.width = (image.naturalWidth * scale) + 'px';
+        label.textContent = Math.round(scale * 100) + '%';
+    }
+
+    function zoomBy(factor) {
+        setZoom(scale * factor);
+    }
+
+    function zoomToFit() {
+        if (!image.naturalWidth) {
+            return;
+        }
+
+        // clientWidth/clientHeight include the stage's padding, which is not
+        // space the image can actually occupy.
+        const styles = getComputedStyle(stage);
+        const width = stage.clientWidth
+            - parseFloat(styles.paddingLeft) - parseFloat(styles.paddingRight);
+        const height = stage.clientHeight
+            - parseFloat(styles.paddingTop) - parseFloat(styles.paddingBottom);
+
+        // Never scale a small picture up just to fill the panel.
+        setZoom(Math.min(width / image.naturalWidth, height / image.naturalHeight, 1));
+    }
 
     // Zoom level on the left, controls on the right, with the same grouping
     // divider the browser's own PDF toolbar uses.
@@ -105,7 +269,10 @@ function createImageViewer(blobUrl) {
 
     // naturalWidth is only known once the blob has decoded.
     image.addEventListener('load', zoomToFit);
-    stage.addEventListener('wheel', onStageWheel);
+    stage.addEventListener('wheel', (e) => {
+        e.preventDefault();
+        zoomBy(e.deltaY < 0 ? WHEEL_STEP : 1 / WHEEL_STEP);
+    });
     enablePanning(stage);
 
     return root;
@@ -127,6 +294,12 @@ function createZoomButton(content, title, onClick) {
     return button;
 }
 
+function createToolbarDivider() {
+    const divider = document.createElement('span');
+    divider.className = 'pdfv2-toolbar-divider';
+    return divider;
+}
+
 function createIcon(pathData) {
     const svg = document.createElementNS(SVG_NS, 'svg');
     svg.setAttribute('viewBox', '0 0 20 20');
@@ -144,68 +317,8 @@ function createIcon(pathData) {
     return svg;
 }
 
-function createToolbarDivider() {
-    const divider = document.createElement('span');
-    divider.className = 'pdfv2-toolbar-divider';
-    return divider;
-}
-
-// Sizing the image in pixels rather than transforming it keeps the stage's
-// own scrollbars in sync with the zoom level, which is what makes panning work.
-function setZoom(scale) {
-    if (!imageViewer || !imageViewer.image.naturalWidth) {
-        return;
-    }
-
-    scale = Math.min(Math.max(scale, MIN_ZOOM), MAX_ZOOM);
-    imageViewer.scale = scale;
-    imageViewer.image.style.width = (imageViewer.image.naturalWidth * scale) + 'px';
-    imageViewer.label.textContent = Math.round(scale * 100) + '%';
-}
-
-function zoomBy(factor) {
-    if (imageViewer) {
-        setZoom(imageViewer.scale * factor);
-    }
-}
-
-function zoomToFit() {
-    if (!imageViewer || !imageViewer.image.naturalWidth) {
-        return;
-    }
-
-    const image = imageViewer.image;
-    const viewport = stageViewport();
-
-    // Never scale a small picture up just to fill the panel.
-    setZoom(Math.min(viewport.width / image.naturalWidth,
-                     viewport.height / image.naturalHeight,
-                     1));
-}
-
-// clientWidth/clientHeight include the stage's padding, which is not space the
-// image can actually occupy.
-function stageViewport() {
-    const stage = imageViewer.stage;
-    const styles = getComputedStyle(stage);
-
-    return {
-        width: stage.clientWidth - parseFloat(styles.paddingLeft) - parseFloat(styles.paddingRight),
-        height: stage.clientHeight - parseFloat(styles.paddingTop) - parseFloat(styles.paddingBottom)
-    };
-}
-
-function onStageWheel(e) {
-    if (!imageViewer) {
-        return;
-    }
-
-    e.preventDefault();
-    zoomBy(e.deltaY < 0 ? WHEEL_STEP : 1 / WHEEL_STEP);
-}
-
 // Drag to pan. The listeners sit on the stage rather than the window so they
-// are discarded along with it when the next attachment is loaded.
+// are discarded along with it when the gallery is rebuilt.
 function enablePanning(stage) {
     let panning = false;
     let startX = 0, startY = 0, startLeft = 0, startTop = 0;
