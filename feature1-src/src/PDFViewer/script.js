@@ -3,8 +3,11 @@ const MAX_ZOOM = 8;
 const ZOOM_STEP = 1.25;
 const WHEEL_STEP = 1.1;
 
+// How far ahead of the viewport a panel starts loading.
 const PRELOAD_MARGIN = '300px';
 
+// Traced from the browser's own PDF toolbar: a 12x2 bar and a 13x13 cross,
+// both 2px strokes with round caps, on a 20x20 grid.
 const SVG_NS = 'http://www.w3.org/2000/svg';
 const ICON_MINUS = 'M4 10h12';
 const ICON_PLUS = 'M10 3.5v13M3.5 10h13';
@@ -33,6 +36,8 @@ function LoadGallery(ItemsJson,LoadingText,IsFactbox){
     requestAnimationFrame(() => {
         const container = document.querySelector("#my-pdf");
 
+        // Rebuilding replaces every panel, so the old ones release their blobs
+        // and the observer stops watching markup that is about to be discarded.
         releaseAllBlobs();
         if (panelObserver) {
             panelObserver.disconnect();
@@ -40,6 +45,8 @@ function LoadGallery(ItemsJson,LoadingText,IsFactbox){
         }
         container.innerHTML = '';
 
+        // Give the container a concrete height so the gallery's height: 100%
+        // chain has something to resolve against.
         container.style.height = height + 'px';
 
         const gallery = document.createElement('div');
@@ -69,6 +76,8 @@ function createPanel(item, loadingText) {
     const body = document.createElement('div');
     body.className = 'pdfv2-panel-body';
 
+    // A panel with nothing to render never asks AL for content, and gives up
+    // the space a preview would have taken.
     if (item.contentType) {
         body.appendChild(createNote(loadingText));
     } else {
@@ -82,6 +91,8 @@ function createPanel(item, loadingText) {
     return panel;
 }
 
+// Content is fetched per panel as it approaches the viewport, so a record with
+// many attachments does not push every file through the bridge at once.
 function observePanels(gallery) {
     panelObserver = new IntersectionObserver((entries) => {
         entries.forEach((entry) => {
@@ -127,10 +138,14 @@ function LoadGalleryNote(AttachmentId,NoteText){
     body.innerHTML = '';
     body.appendChild(createNote(NoteText));
 
+    // Content that never arrived should not keep holding a preview's worth of
+    // space open.
     panel.classList.add('pdfv2-panel-collapsed');
     panel.dataset.state = 'done';
 }
 
+// Ids are GUIDs in braces, which would need escaping inside a selector, so the
+// panels are matched by comparing the attribute instead.
 function findPanel(attachmentId) {
     const panels = document.querySelectorAll('.pdfv2-panel');
     for (let i = 0; i < panels.length; i++) {
@@ -171,6 +186,9 @@ function releaseAllBlobs() {
     Object.keys(galleryBlobUrls).forEach(releaseBlob);
 }
 
+// Images get our own zoom/pan viewer. Everything else goes to the browser's
+// built-in plugin viewer, which is what handles PDF and brings its own
+// toolbar.
 function createViewer(ContentType, blobUrl) {
     if (ContentType.indexOf('image/') === 0) {
         return createImageViewer(blobUrl);
@@ -183,6 +201,7 @@ function createViewer(ContentType, blobUrl) {
     return viewer;
 }
 
+// Each panel owns its zoom state, so several images can be open at once.
 function createImageViewer(blobUrl) {
     const root = document.createElement('div');
     root.className = 'pdfv2-viewer';
@@ -199,6 +218,9 @@ function createImageViewer(blobUrl) {
 
     let scale = 1;
 
+    // Sizing the image in pixels rather than transforming it keeps the stage's
+    // own scrollbars in sync with the zoom level, which is what makes panning
+    // work.
     function setZoom(nextScale) {
         if (!image.naturalWidth) {
             return;
@@ -218,15 +240,20 @@ function createImageViewer(blobUrl) {
             return;
         }
 
+        // clientWidth/clientHeight include the stage's padding, which is not
+        // space the image can actually occupy.
         const styles = getComputedStyle(stage);
         const width = stage.clientWidth
             - parseFloat(styles.paddingLeft) - parseFloat(styles.paddingRight);
         const height = stage.clientHeight
             - parseFloat(styles.paddingTop) - parseFloat(styles.paddingBottom);
 
+        // Never scale a small picture up just to fill the panel.
         setZoom(Math.min(width / image.naturalWidth, height / image.naturalHeight, 1));
     }
 
+    // Zoom level on the left, controls on the right, with the same grouping
+    // divider the browser's own PDF toolbar uses.
     const toolbar = document.createElement('div');
     toolbar.className = 'pdfv2-toolbar';
     toolbar.appendChild(label);
@@ -240,6 +267,7 @@ function createImageViewer(blobUrl) {
     root.appendChild(toolbar);
     root.appendChild(stage);
 
+    // naturalWidth is only known once the blob has decoded.
     image.addEventListener('load', zoomToFit);
     stage.addEventListener('wheel', (e) => {
         e.preventDefault();
@@ -289,6 +317,8 @@ function createIcon(pathData) {
     return svg;
 }
 
+// Drag to pan. The listeners sit on the stage rather than the window so they
+// are discarded along with it when the gallery is rebuilt.
 function enablePanning(stage) {
     let panning = false;
     let startX = 0, startY = 0, startLeft = 0, startTop = 0;
