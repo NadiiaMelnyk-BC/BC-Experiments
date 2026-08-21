@@ -35,6 +35,8 @@ page 50100 "PDFV2 PDF Attachments"
             group(Preview)
             {
                 ShowCaption = false;
+                Visible = HasAttachments;
+
                 usercontrol(PDFViewer; "PDFV2 PDF Viewer")
                 {
                     ApplicationArea = All;
@@ -42,6 +44,11 @@ page 50100 "PDFV2 PDF Attachments"
                     trigger ControlAddinReady()
                     begin
                         AddInIsReady := true;
+
+                        // The control is created afresh each time the group
+                        // becomes visible, with no panels in it, so the gallery
+                        // is always rebuilt from here.
+                        GalleryLoaded := false;
                         ShowGallery();
                     end;
 
@@ -58,6 +65,7 @@ page 50100 "PDFV2 PDF Attachments"
         AddInIsReady: Boolean;
         GalleryFilters: Text;
         GalleryLoaded: Boolean;
+        HasAttachments: Boolean;
         AttachmentGoneTxt: Label 'This attachment is no longer available.';
         LoadingTxt: Label 'Loading...';
         NoContentTxt: Label 'This attachment is empty, so there is nothing to preview.';
@@ -66,7 +74,20 @@ page 50100 "PDFV2 PDF Attachments"
 
     trigger OnAfterGetCurrRecord()
     begin
+        UpdateVisibility();
         ShowGallery();
+    end;
+
+    /// <summary>
+    /// Keeps the preview out of the layout entirely when the record has nothing
+    /// attached, rather than leaving an empty viewer sitting under the list.
+    /// </summary>
+    local procedure UpdateVisibility()
+    var
+        Attachment: Record "Document Attachment";
+    begin
+        Attachment.CopyFilters(Rec);
+        HasAttachments := not Attachment.IsEmpty();
     end;
 
     /// <summary>
@@ -84,6 +105,12 @@ page 50100 "PDFV2 PDF Attachments"
         // OnAfterGetCurrRecord fires before the add-in has loaded its scripts.
         if not AddInIsReady then
             exit;
+
+        // While the group is hidden there is no control to talk to.
+        if not HasAttachments then begin
+            GalleryLoaded := false;
+            exit;
+        end;
 
         // The trigger also fires when the user picks another row, which leaves
         // the gallery unchanged. Only a different source record rebuilds it.
