@@ -1,6 +1,8 @@
+var currentBlobUrl = null;
+
 function InitializeControl(controlId) {
     var controlAddIn = document.getElementById(controlId);
-    controlAddIn.innerHTML ='<div id="my-pdf"></div>';
+    controlAddIn.innerHTML ='<div id="my-pdf" class="pdfv2-container"></div>';
 }
 
 function SetVisible(IsVisible) {
@@ -14,14 +16,31 @@ function SetVisible(IsVisible) {
 
 function LoadPDF(PDFDocument,IsFactbox){
     var iframe = window.frameElement;
+    var height = IsFactbox ? 600 : 1100;
 
     requestAnimationFrame(() => {
         const blob = b64toBlob(PDFDocument, "application/pdf");
         const blobUrl = URL.createObjectURL(blob);
-        PDFObject.embed(blobUrl, "#my-pdf");
 
-        iframe.style.maxHeight = 1100 + 'px';
-        iframe.style.height =  1100 + 'px';
+        // Hand the blob to the browser's own PDF viewer, replacing whatever
+        // document was shown before.
+        const container = document.querySelector("#my-pdf");
+        container.innerHTML = '';
+
+        const viewer = document.createElement('embed');
+        viewer.className = 'pdfv2-frame';
+        viewer.type = 'application/pdf';
+        viewer.src = blobUrl;
+        container.appendChild(viewer);
+
+        // The previous document is detached now, so its blob can be released.
+        if (currentBlobUrl) {
+            URL.revokeObjectURL(currentBlobUrl);
+        }
+        currentBlobUrl = blobUrl;
+
+        iframe.style.maxHeight = height + 'px';
+        iframe.style.height =  height + 'px';
     });
 }
 

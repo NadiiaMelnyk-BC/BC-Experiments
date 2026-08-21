@@ -1,8 +1,8 @@
 controladdin "PDFV2 PDF Viewer"
 {
-    Scripts = 'https://ajax.aspnetcdn.com/ajax/jQuery/jquery-3.3.1.min.js', 'https://unpkg.com/pdfobject@2.2.8/pdfobject.min.js', 'PDFViewer/script.js';
-    StartupScript = 'PDFViewer/Startup.js';
-    StyleSheets = 'PDFViewer/stylesheet.css';
+    Scripts = 'src/PDFViewer/script.js';
+    StartupScript = 'src/PDFViewer/Startup.js';
+    StyleSheets = 'src/PDFViewer/stylesheet.css';
 
     MinimumHeight = 400;
     MinimumWidth = 100;

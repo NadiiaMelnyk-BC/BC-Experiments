@@ -1,7 +1,13 @@
-.pdfobject-container {
+.pdfv2-container {
     max-width: 100%;
-	max-height: 100%;
-	height: 100%;
-	border: 5px solid rgba(0,0,0,.2);
-	margin: 0;
+    max-height: 100%;
+    height: 100%;
+    border: 5px solid rgba(0,0,0,.2);
+    margin: 0;
+}
+
+.pdfv2-frame {
+    width: 100%;
+    height: 100%;
+    overflow: auto;
 }

@@ -1,10 +1,10 @@
 {
   "id": "3259246b-208f-48c6-a6d6-7c2f1ab2137f",
-  "name": "Customer Hello World",
+  "name": "PDF Attachment Viewer",
   "publisher": "BC Experiments",
   "version": "1.0.0.0",
-  "brief": "",
-  "description": "Shows a Hello World message on the Customer Card page.",
+  "brief": "Preview PDF document attachments in the browser.",
+  "description": "Adds an in-page PDF preview for attachments stored in the Document Attachment table.",
   "privacyStatement": "",
   "EULA": "",
   "help": "",
